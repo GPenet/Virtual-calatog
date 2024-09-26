@@ -2,7 +2,7 @@
 #pragma once
 
 struct BMINLEX {// receive a band send back i416 and morphing data
-	int minirows[9], minicols[9], cx[9], minirr[9];
+	int minirows[9], minicols[9], cx[9], minirr[9],ctriplet;
 	int* minir0[3], * minic0[3], * minird[3];
 	BMINLEX() {
 		minir0[0] = minirows; minir0[1] = &minirows[3]; minir0[2] = &minirows[6];
@@ -67,4 +67,8 @@ struct BMINLEX {// receive a band send back i416 and morphing data
 	void Go_412();
 	void Go_413();
 	void Go_414_415();
+#ifdef INCLUDE_DEBUGGING_CODE
+	void DumpMapping();
+	void Status(int op = 0);
+#endif
 };

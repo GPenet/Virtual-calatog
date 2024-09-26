@@ -1,9 +1,20 @@
-// MathLibrary.cpp : Defines the exported functions for the DLL.
-#include "pch.h" // use stdafx.h in Visual Studio 2017 and earlier
 #include <utility>
 #include <limits.h>
 #include "skbminlex.h"
-static BMINLEX bminlex;
+// ======  morphing a band
+extern "C" __declspec(dllexport) void SkbGetMappingChar(const char* a, BANDPERM * b);
+extern "C" __declspec(dllexport) void SkbGetMappingInt(int* a, BANDPERM * b);
+
+// ======= getting auto morphs 
+extern "C" __declspec(dllexport) int SkbGetAutoMorphs(int bandid, BANDPERM * *tpermret);
+
+// ======== Getting a band and  UAs of a band
+extern "C" __declspec(dllexport) void SkbGetBandChar(int bandid, char* bchar27);
+extern "C" __declspec(dllexport) int SkbGetUas(int bandid, int** tuas_ret);
+
+
+
+BMINLEX bminlex;
 //=============== get id and mapping 
 void SkbGetMappingChar( const char* grid, BANDPERM * mapret) {
 	int b[27];
@@ -31,20 +42,7 @@ int tpermg9stk[6][9] = {
 BMINLEX bmlw;
 
 // index to the 416 band 1 after r2c4 r2c7 r2c8 r3c1 r3c2
-int bminlex_tindex[50] = {
-	31, 65, 92, 110, 126, 135,		//00_ 123 
-	139, 166, 186, 196, 208, 214,	//06_ 126 
-	217, 234, 239,					//12_ 132 68 69 86(1)
-	240, 262, 277, 284, 298, 303,	//15_ 162 
-	309, 322, 332, 334, 343, 346,	//21_ 163  
-	347, 349, 354, 357,				//27_ 216 68 69 86 89
-	359,362, 366, 369, 375, 378,	//31_ 261
-	379, 381, 382, 386, 392, 395,	//37_ 263
-	397, 407,						//43_ 361 89 98
-	409, 411,						//45_ 362 89 98
-	412,415,416						//47_861_862 
-};
-static int tbit9[9] = { 1,2,4,8,16,32,64,128,256 };
+int tbit9[9] = { 1,2,4,8,16,32,64,128,256 };
 inline void  BMINLEX::MapDigits()
 {
 	register int r;
@@ -130,7 +128,16 @@ void BMINLEX::Init(int* grid) {
 	if (nxcols == 7) {// need the count of triplets
 		register int vt = vr, n = 0, i;
 		for (i = 0; i < 9; i++)if (vt == minicols[i])n++;
-		if (n == 3)nx3 = 1; else nx3 = 0;
+		if (n == 3) {	nx3 = 1; ctriplet = vt;	}
+		else nx3 = 0;
+	}
+	else if (nxcols == 5) {// need the triplet pattern
+		for (int i = 0; i < 3; i++) {// all colums stack1
+			int n = 0;
+			register int vt = minicols[i];
+			for (int j = 3; j < 9; j++)if (vt == minicols[j])n++;
+			if (n==2) { ctriplet = vt; break; }
+		}
 	}
 	if (minirows[0] == minirows[5] || (!(minirows[0] & minirows[5])))
 		GoMinlex_0_30(); // block 0-30   456 in minirow 4			
@@ -218,7 +225,7 @@ void BMINLEX::Init(int* grid) {
 						else {
 							smaller_r2c4 = ir2c4 = 3;
 							switch (nxcols) {
-							case 5:if (DoMapping411()) return;
+							case 5:if (DoMapping411()) continue;
 								ValidMinlex(411); return;
 							case 6:
 								I457end(); GoB_case6(); if (goback) return;
@@ -418,6 +425,10 @@ void BMINLEX::DoMapping0() {
 	pout.InitBase(0);
 	for (int i = 0; i < 9; i++)// init to morph on columns
 		pout.map[i] = i;
+	// change rows 2/3 if needed
+	if (minirows[1] != minirows[4]) {
+		pout.rows[1] = 2; pout.rows[2] = 1;
+	}
 	// align  the columns on box 1
 	{
 		int np = 0, n1 = 0;
@@ -429,7 +440,7 @@ void BMINLEX::DoMapping0() {
 			}
 			for (int j = 6; j < 9; j++) {
 				if (minicols[j] == r)
-					pout.cols[6 + i] = j;
+				pout.cols[6 + i] = j;
 			}
 		}
 	}
@@ -811,6 +822,7 @@ void BMINLEX::T412p() {
 	if (nxcols != 7) return;
 	if (mc4 & m1) return;
 	if (mc8 & m4) return;
+	if (mc8 & m2) return;
 	if (nx3 != 1)return;// column 367 3 times
 	Go_414_415();
 }
@@ -867,6 +879,7 @@ int BMINLEX::DoMapping411() {
 
 int BMINLEX::T412p_column367() {
 	register int i, m = m7;
+	if(nxcols>3)	if (!(ctriplet & m7)) return 1;
 	// find3 67 in box 1 2 3
 	{
 		if (m & cx[0])i = 0;
@@ -917,6 +930,10 @@ V   V V       V   V V       V   V V
 123 456 789 _ 457 893 612 _ 896 217 354 _   414    	7 1 0
 123 456 789 _ 457 893 612 _ 986 217 354 _   415    	7 1 0
 
+123 456 789 _ 
+457 893 612 _ 
+896 127 345 _   412    	3 3 0
+
 */
 
 void BMINLEX::Go_412() {
@@ -929,42 +946,15 @@ void BMINLEX::Go_412() {
 void BMINLEX::Go_413() {
 	if (mc1 & m9)return; // not the right morph
 	if (!(mc4 & m1))return; // not the right morph
+	if (mc8 & m4)return; // not the right morph
+	if (mc8 & m2)return; // not the right morph
 	MapDigits();
 	ValidMinlex(413, 1);
 
 }
 
 void BMINLEX::Go_414_415() {//mapping if
-	/*
-	register int i, m = m7;
-	{
-		if (m & cx[0])i = 0;
-		else if (m & cx[1])i = 1;
-		else i = 2;
-		c3n = i;  mc3 = cx[i]; m3 = m123 & mc3;
-		int c12 = 7 ^ (1<<c3n);
-		bitscanforward(c1n, c12);
-		mc1 = cx[c1n]; m1 = m123 & mc1; m4 = m456 & mc1;
-		bitscanreverse(c2n, c12);
-		mc2 = cx[c2n]; m2 = m123 & mc2; m5 = m456 & mc2;
-	}
-	if(!(mc3&m6) )return;
-	for (int i = 3; i < 6; i++){// get c4n  c5n c6n m8 m9
-		m = cx[i];
-		if (m4 & m) { c4n = i;  mc4 = m; m8 = m789 & mc4; }
-		else if (m5 & m) { c5n = i;  mc5 = m; m9 = m789 & mc5; }
-		else { c6n = i;  mc6 =m; }
-	}
-	if (!(mc4 & m2)) return; if (!(mc5 & m1)) return;
-	for (int i = 6; i < 9; i++) {// get c7n  c8n c9n
-		m = cx[i];
-		if (m7 & m) { c7n = i;  mc7 = m; }
-		else if (m8 & m) { c8n = i;  mc8 = m; }
-		else { c9n = i;  mc9 = m; }
-	}
-	if (!(mc7 & m6)) return; if (!(mc7 & m3)) return;
-	if (!(mc8 & m1)) return; if (!(mc8 & m5)) return;
-	*/
+
 	MapDigits();
 	if (mc1 & m8) {
 		ValidMinlex(414);
@@ -976,7 +966,7 @@ void BMINLEX::Go_414_415() {//mapping if
 
 //==================  band list and uas list
 
-static const char* t416[416] = {
+const char* t416[416] = {
 	"6789123789123456", "6789123789123465", "6789123789123564", "6789123789132465",
 	"6789123789132546", "6789123789132564", "6789123789231564", "6789123789231645",
 	"6789123798132465", "6789123798132546", "6789123798132564", "6789123798213564",
