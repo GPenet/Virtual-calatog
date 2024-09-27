@@ -426,7 +426,7 @@ void BMINLEX::DoMapping0() {
 	for (int i = 0; i < 9; i++)// init to morph on columns
 		pout.map[i] = i;
 	// change rows 2/3 if needed
-	if (minirows[1] != minirows[4]) {
+	if (minirows[1] != minirows[3]) {
 		pout.rows[1] = 2; pout.rows[2] = 1;
 	}
 	// align  the columns on box 1

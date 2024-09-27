@@ -97,7 +97,7 @@ void InitColsBand1(int* g, int* colband1) {
 
 int CheckPermOk(BANDPERM& p, int* s, int* r) {
 	int d[27];
-	p.MorphOrdered(s, d);
+	p.Morph(s, d);
 	int ir = BandCompare(d, r);
 	if (ir) {
 		BandDump(s, " source");
