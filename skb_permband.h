@@ -10,9 +10,9 @@ struct BANDPERM {
 	}
 	void Morph(int* s, int* d) {
 		for (int irow = 0; irow < 3; irow++) {
-			int drow = 9 * irow;
+			register int drow = 9 * irow,drows=9*rows[irow];
 			for (int icol = 0; icol < 9; icol++)
-				d[drow + icol] = map[s[drow + cols[icol]]];
+				d[drow + icol] = map[s[drows + cols[icol]]];
 		}
 	}
 	void MorphOrdered(int* s, int* d) {
